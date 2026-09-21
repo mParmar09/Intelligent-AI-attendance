@@ -1,9 +1,10 @@
 #User requirements for the project
 
+#for data analysis
 numpy
 pandas
 
-#for face recognition
+#for face recognition 
 scikit-learn
 dlib-bin
 git+https://github.com/ageitgey/face_recognition_models
