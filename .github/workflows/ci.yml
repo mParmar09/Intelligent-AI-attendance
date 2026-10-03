@@ -1,0 +1,60 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt ruff
+
+      - name: Create dummy Streamlit secrets
+        run: |
+          mkdir -p .streamlit
+          printf 'SUPABASE_URL = "https://example.supabase.co"\nSUPABASE_KEY = "dummy.dummy.dummy"\n' > .streamlit/secrets.toml
+
+      - name: Lint (serious errors only)
+        run: ruff check . --select E9,F63,F7,F82
+
+      - name: Syntax check
+        run: python -m compileall -q .
+
+      - name: Import every module
+        run: |
+          python - <<'EOF'
+          import importlib, pathlib, sys, traceback
+          sys.path.insert(0, ".")
+          failed = []
+          for p in sorted(pathlib.Path("src").rglob("*.py")):
+              mod = ".".join(p.with_suffix("").parts)
+              try:
+                  importlib.import_module(mod)
+                  print("OK  ", mod)
+              except Exception:
+                  print("FAIL", mod)
+                  traceback.print_exc()
+                  failed.append(mod)
+          sys.exit(1 if failed else 0)
+          EOF
+
+      - name: Streamlit startup test
+        continue-on-error: true
+        run: |
+          python - <<'EOF'
+          from streamlit.testing.v1 import AppTest
+          at = AppTest.from_file("app.py").run(timeout=60)
+          assert not at.exception, at.exception
+          EOF
