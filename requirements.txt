@@ -20,3 +20,7 @@ pillow
 
 #for web app
 streamlit
+
+#for audio processing
+resemblyzer
+librosa
